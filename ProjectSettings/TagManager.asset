@@ -7,6 +7,7 @@ TagManager:
   - Ground
   - Zemin
   - Duvar
+  - Esya
   layers:
   - Default
   - TransparentFX
