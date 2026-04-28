@@ -2,65 +2,63 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [Header("Hareket Ayarları")]
-    public float moveSpeed = 7f;
+    public float moveSpeed = 8f;
     public float jumpForce = 12f;
-
-    [Header("Bileşenler")]
     private Rigidbody2D rb;
     private Animator anim;
-    private bool isGrounded;
-    private float moveInput;
+    private bool isGrounded; // Yerde miyiz?
+    private Vector3 originalScale;
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
+        originalScale = transform.localScale;
     }
 
     void Update()
     {
-        // Girdi Alma
-        moveInput = Input.GetAxisRaw("Horizontal");
+        // 1. Sağa Sola Hareket
+        float moveInput = Input.GetAxisRaw("Horizontal");
+        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
 
-        // Zıplama (Yeni standart: linearVelocity)
-        if (Input.GetButtonDown("Jump") && isGrounded)
+        // 2. Yön Çevirme (Karakterin bakış yönü)
+        if (moveInput > 0) transform.localScale = originalScale;
+        else if (moveInput < 0) transform.localScale = new Vector3(-originalScale.x, originalScale.y, originalScale.z);
+
+        // 3. Zıplama (Sadece W tuşu ve yerdeyse)
+        if (Input.GetKeyDown(KeyCode.W) && isGrounded)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            isGrounded = false;
-            anim.SetBool("isGrounded", false);
+            isGrounded = false; // Havaya kalktığı an yerle temas biter
         }
 
-        FlipCharacter();
-
-        // Animasyon Parametresi
-        anim.SetFloat("Speed", Mathf.Abs(moveInput));
-    }
-
-    void FixedUpdate()
-    {
-        // Fiziksel Hareket (Yeni standart: linearVelocity)
-        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
-    }
-
-    void FlipCharacter()
-    {
-        if (moveInput > 0)
+        // 4. Animasyonlar (Animator'daki isGrounded ve Speed parametrelerini günceller)
+        if (anim != null)
         {
-            transform.localScale = new Vector3(1, 1, 1);
-        }
-        else if (moveInput < 0)
-        {
-            transform.localScale = new Vector3(-1, 1, 1);
+            anim.SetFloat("Speed", Mathf.Abs(moveInput));
+            anim.SetBool("isGrounded", isGrounded);
         }
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    // --- TEMAS KONTROLLERİ ---
+
+    // Karakter bir şeye değdiği sürece çalışır
+    private void OnCollisionStay2D(Collision2D collision)
     {
+        // Çarptığın objenin Tag'i "Ground" ise yerde kabul et
         if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = true;
-            anim.SetBool("isGrounded", true);
+        }
+    }
+
+    // Karakter teması kestiği an çalışır
+    private void OnCollisionExit2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGrounded = false;
         }
     }
 }
