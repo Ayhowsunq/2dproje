@@ -19,11 +19,16 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
+        // --- YENİ: İsim yazarken hareketi kes ---
+        if (PuanYoneticisi.ornek != null && PuanYoneticisi.ornek.isimGirisAlani.isFocused)
+        {
+            rb.linearVelocity = new Vector2(0, rb.linearVelocity.y); // Yatay hızı sıfırla
+            if (anim != null) anim.SetFloat("Speed", 0); // Animasyonu durdur
+            return; // Kodun geri kalanını çalıştırma
+        }
+
         float moveInput = Input.GetAxisRaw("Horizontal");
         rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
-
-        if (moveInput > 0) transform.localScale = new Vector3(1, 1, 1);
-        else if (moveInput < 0) transform.localScale = new Vector3(-1, 1, 1);
 
         if ((Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.Space)) && isGrounded)
         {
@@ -43,7 +48,6 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    // --- SENİN ÇOK SEVDİĞİN ÇALIŞAN ZEMİN KONTROLÜ ---
     private void OnCollisionStay2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Ground")) isGrounded = true;
