@@ -6,15 +6,17 @@ public class GeriSayimYoneticisi : MonoBehaviour
 {
     public static GeriSayimYoneticisi ornek;
 
-    [Header("UI Ayarları")]
+    [Header("UI & Ses Bileşenleri")]
     public TextMeshProUGUI geriSayimMetni;
-
-    [Header("Ses ve Hız Ayarları")]
-    public AudioSource sesKaynagi;
+    public AudioSource sayimSesKaynagi;
     public AudioClip sayimSesi;
-    [Range(0.1f, 2f)] public float sesHizi = 1f; // KANKA: Buradan sesi yavaşlatıp hızlandırabilirsin (0.8f yavaşlatır)
 
-    private bool sayimBasladi = false;
+    [Header("Inspector Pitch Ayarları")]
+    public float oda1Pitch = 1.0f;
+    public float oda3Pitch = 1.3f;
+    public float oda6Pitch = 1.6f;
+
+    private bool sayimDevamEdiyor = false;
 
     void Awake()
     {
@@ -22,54 +24,73 @@ public class GeriSayimYoneticisi : MonoBehaviour
         if (geriSayimMetni != null) geriSayimMetni.gameObject.SetActive(false);
     }
 
-    public void SayimiBaslat()
+    public void AtmosferTetikle(int odaNo)
     {
-        if (sayimBasladi) return;
-        sayimBasladi = true;
+        BasitGirisVeKamera.ornek?.SarsintiyiAyarla(odaNo);
 
-        StartCoroutine(SayimRutini());
+        if (odaNo == 1 || odaNo == 3 || odaNo == 6)
+        {
+            if (!sayimDevamEdiyor) StartCoroutine(SayimRutini(odaNo));
+        }
+        else if (odaNo == 9)
+        {
+            MuzikYoneticisi.ornek?.AsamayaGoreMuzikCal(9);
+        }
     }
 
-    IEnumerator SayimRutini()
+    IEnumerator SayimRutini(int odaNo)
     {
-        // 1. Karakteri dondur
+        sayimDevamEdiyor = true;
+
+        // Karakteri dondur
         GameObject oyuncu = GameObject.FindGameObjectWithTag("Player");
         var hareket = oyuncu?.GetComponent<MonoBehaviour>();
         if (hareket != null) hareket.enabled = false;
 
-        if (geriSayimMetni != null) geriSayimMetni.gameObject.SetActive(true);
-
-        // 2. SES AYARI: Sesin hızını buradan ayarlıyoruz
-        if (sesKaynagi != null && sayimSesi != null)
+        if (geriSayimMetni != null)
         {
-            sesKaynagi.pitch = sesHizi; // Sesi yavaşlatır/hızlandırır
-            sesKaynagi.clip = sayimSesi;
-            sesKaynagi.Play();
-
-            // KANKA: Sesin toplam süresini hızına göre hesaplıyoruz
-            float toplamSure = sayimSesi.length / sesHizi;
-            float saniyeBasinaDusen = toplamSure / 4f; // 3-2-1-BAŞLA toplam 4 aşama
-
-            // Görsel sayımı sesin gerçek süresine bölüyoruz
-            geriSayimMetni.text = "3";
-            yield return new WaitForSeconds(saniyeBasinaDusen);
-
-            geriSayimMetni.text = "2";
-            yield return new WaitForSeconds(saniyeBasinaDusen);
-
-            geriSayimMetni.text = "1";
-            yield return new WaitForSeconds(saniyeBasinaDusen);
-
-            geriSayimMetni.text = "BAŞLA!";
-
-            // BAŞLA dedikten sonra sistemleri aç
-            MuzikYoneticisi.ornek?.OyunMuziginiCal();
-            if (PuanYoneticisi.ornek != null) PuanYoneticisi.ornek.PuanlamayiBaslat();
-            if (hareket != null) hareket.enabled = true;
-
-            yield return new WaitForSeconds(saniyeBasinaDusen);
+            geriSayimMetni.text = ""; // Temiz başla
+            geriSayimMetni.gameObject.SetActive(true);
         }
 
-        if (geriSayimMetni != null) geriSayimMetni.gameObject.SetActive(false);
+        float secilenPitch = (odaNo == 1) ? oda1Pitch : (odaNo == 3) ? oda3Pitch : oda6Pitch;
+
+        if (sayimSesKaynagi != null && sayimSesi != null)
+        {
+            sayimSesKaynagi.pitch = secilenPitch;
+            sayimSesKaynagi.clip = sayimSesi;
+            sayimSesKaynagi.Play();
+
+            float toplamSure = sayimSesi.length / secilenPitch;
+            float saniyeBasinaDusen = toplamSure / 4f;
+
+            // KANKA: Döngüyü daha kontrollü yapıyoruz
+            string[] adimlar = { "3", "2", "1", "BAŞLA!" };
+
+            for (int i = 0; i < adimlar.Length; i++)
+            {
+                geriSayimMetni.text = adimlar[i];
+
+                if (adimlar[i] == "BAŞLA!")
+                {
+                    MuzikYoneticisi.ornek?.AsamayaGoreMuzikCal(odaNo);
+                    // Puanlama kısmını halledince burayı açarsın
+                    // if (PuanYoneticisi.ornek != null) PuanYoneticisi.ornek.PuanlamayiBaslat();
+                    if (hareket != null) hareket.enabled = true;
+                }
+
+                yield return new WaitForSeconds(saniyeBasinaDusen);
+            }
+        }
+
+        // KANKA: Burada metni tamamen kapatıyoruz, 
+        // Döngü bittiği an "3" yazma ihtimalini ortadan kaldırdık.
+        if (geriSayimMetni != null)
+        {
+            geriSayimMetni.text = "";
+            geriSayimMetni.gameObject.SetActive(false);
+        }
+
+        sayimDevamEdiyor = false;
     }
 }
